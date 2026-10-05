@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmokeTrace</title>
+  <meta name="description" content="48-hour farm-fire smoke forecast for Delhi-NCR, from live NASA satellite fire data and wind forecasts.">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 18c2-1 3-3 3-5s2-4 4-4 3-2 3-4m-6 13c3 0 5-2 6-4s3-3 5-3 3-2 3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>SmokeTrace</span>
+    </div>
+    <div class="meta" id="updated">Loading live data…</div>
+    <div class="lang" role="group" aria-label="Language">
+      <button data-lang="en" class="on">EN</button><button data-lang="hi">हिं</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="mapwrap">
+      <div id="map"></div>
+      <div class="timebar">
+        <button id="play" aria-label="Play">▶</button>
+        <input id="slider" type="range" min="0" max="72" value="24" step="1" aria-label="Time">
+        <div id="clock"></div>
+      </div>
+      <div class="legend">
+        <span><i class="dot fire"></i><b data-i18n="fires">Farm fires (satellite)</b></span>
+        <span><i class="dot smoke"></i><b data-i18n="smoke">Projected smoke</b></span>
+      </div>
+    </section>
+
+    <aside>
+      <div class="stats">
+        <div><b id="s-fires">–</b><span data-i18n="statFires">fires, 48h</span></div>
+        <div><b id="s-frp">–</b><span data-i18n="statFrp">MW fire power</span></div>
+        <div><b id="s-hot">–</b><span data-i18n="statHot">areas at risk</span></div>
+      </div>
+
+      <div class="card" id="mycard">
+        <label for="area" data-i18n="yourArea">Your area</label>
+        <select id="area"></select>
+        <div class="verdict">
+          <span class="badge" id="lvl"></span>
+          <span id="when"></span>
+        </div>
+        <p id="msg"></p>
+        <div id="srcs"></div>
+        <a id="share" class="btn" target="_blank" rel="noopener" data-i18n="share">Share on WhatsApp</a>
+      </div>
+
+      <div class="card" id="ask" hidden>
+        <label for="q" data-i18n="askTitle">Ask SmokeTrace</label>
+        <div class="chips">
+          <button type="button" data-i18n="ex1">Is Saturday's school sports day in Noida safe?</button>
+          <button type="button" data-i18n="ex2">Where is today's smoke coming from?</button>
+        </div>
+        <form id="askform">
+          <input id="q" maxlength="500" autocomplete="off">
+          <button type="submit" data-i18n="askBtn">Ask</button>
+        </form>
+        <p id="answer" aria-live="polite"></p>
+      </div>
+
+      <h3 data-i18n="allAreas">Delhi-NCR, next 48 hours</h3>
+      <ul id="list"></ul>
+
+      <h3 data-i18n="topSources">Where the fires are</h3>
+      <ul id="districts"></ul>
+
+      <h3 data-i18n="pmTitle">Delhi PM2.5 forecast (CAMS, µg/m³)</h3>
+      <div id="pm"></div>
+
+      <p class="foot" data-i18n="foot">Smoke paths are estimates from satellite fire detections (NASA FIRMS) and 925 hPa wind forecasts (Open-Meteo). Treat them as an early warning, not a measurement. Clouds can hide fires.</p>
+    </aside>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

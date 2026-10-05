@@ -1,0 +1,144 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: SmokeTrace - farm-fire smoke forecast for Delhi-NCR
+
+Parameters:
+  AlertEmail:
+    Type: String
+    Default: ""
+    Description: Optional email to subscribe to high/severe smoke alerts
+  ModelId:
+    Type: String
+    Default: ""
+    Description: Bedrock model or inference-profile id for the Ask agent (empty = Strands default)
+
+Conditions:
+  HasEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+
+Resources:
+  WebBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      WebsiteConfiguration:
+        IndexDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+
+  WebBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "${WebBucket.Arn}/*"
+
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: SmokeTrace
+
+  AlertSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail
+    Properties:
+      TopicArn: !Ref AlertTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: engine/
+      Handler: smoketrace.handler
+      Runtime: python3.12
+      Timeout: 180
+      MemorySize: 512
+      Environment:
+        Variables:
+          BUCKET: !Ref WebBucket
+          TOPIC_ARN: !Ref AlertTopic
+          ASK_URL: !GetAtt AskFunctionUrl.FunctionUrl
+      Policies:
+        - S3WritePolicy:
+            BucketName: !Ref WebBucket
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt AlertTopic.TopicName
+      Events:
+        Every3Hours:
+          Type: Schedule
+          Properties:
+            Schedule: rate(3 hours)
+
+  # Strands agent answering questions over the latest forecast. Function URL rather than
+  # API Gateway because agent tool loops can exceed API Gateway's 30 s integration timeout.
+  AskFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: agent/
+      Handler: ask.handler
+      Runtime: python3.12
+      Timeout: 60
+      MemorySize: 1024
+      Environment:
+        Variables:
+          BUCKET: !Ref WebBucket
+          MODEL_ID: !Ref ModelId
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref WebBucket
+        - Statement:
+            - Effect: Allow
+              Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+              Resource: "*"
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins: ["*"]
+          AllowMethods: [POST]
+          AllowHeaders: [content-type]
+
+  # Public Function URLs need lambda:InvokeFunction too (AWS change, Oct 2025)
+  AskPublicInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref AskFunction
+      Principal: "*"
+      InvokedViaFunctionUrl: true
+
+  Cdn:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        HttpVersion: http2
+        PriceClass: PriceClass_200  # includes India edge locations
+        Origins:
+          - Id: site
+            DomainName: !Select [2, !Split ["/", !GetAtt WebBucket.WebsiteURL]]
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+        DefaultCacheBehavior:
+          TargetOriginId: site
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized (honours data/ max-age=300)
+          Compress: true
+
+Outputs:
+  AppURL:
+    Value: !Sub "https://${Cdn.DomainName}"
+  AskURL:
+    Value: !GetAtt AskFunctionUrl.FunctionUrl
+  WebsiteURL:
+    Value: !GetAtt WebBucket.WebsiteURL
+  BucketName:
+    Value: !Ref WebBucket
+  IngestFunctionName:
+    Value: !Ref IngestFunction
