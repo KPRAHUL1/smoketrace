@@ -28,7 +28,7 @@ aside { overflow-y: auto; padding: 16px; border-left: 1px solid var(--line); bac
 #slider { flex: 1; accent-color: var(--fire); }
 #clock { font-variant-numeric: tabular-nums; font-size: 12px; min-width: 150px; text-align: right; }
 #clock em { font-style: normal; color: var(--fire); display: block; font-size: 11px; }
-.legend { position: absolute; top: 12px; left: 56px; z-index: 500; display: flex; gap: 14px; font-size: 12px;
+.legend { position: absolute; bottom: 72px; left: 16px; z-index: 500; display: flex; gap: 14px; font-size: 12px;
   background: rgba(15,17,21,.85); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
 .legend b { font-weight: 500; }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
@@ -74,6 +74,48 @@ ul { list-style: none; margin: 0; padding: 0; }
 #districts .b { height: 6px; background: var(--fire); border-radius: 3px; }
 #districts .n { text-align: right; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 #pm svg { width: 100%; height: 90px; display: block; }
+.topbar { position: absolute; top: 12px; left: 56px; right: 16px; z-index: 600; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+.topbar > * { pointer-events: auto; }
+#banner { --lv: var(--low); display: flex; align-items: center; gap: 10px; background: rgba(15,17,21,.92); border: 1px solid var(--line);
+  border-left: 4px solid var(--lv); border-radius: 8px; padding: 8px 12px; font-size: 15px; font-weight: 600; max-width: 100%; }
+#bLevel { background: var(--lv); color: #111; border-radius: 999px; padding: 2px 9px; font-size: 11px; text-transform: uppercase; flex: none; }
+#notice, #focusChip { background: rgba(15,17,21,.92); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12px; }
+#notice { border-color: var(--moderate); color: var(--moderate); }
+#focusChip { border-color: var(--fire); }
+.topbar button { background: none; border: 0; color: var(--fire); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 0 0 0 6px; }
+
+#state { position: absolute; inset: 0; z-index: 900; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: rgba(11,13,16,.88); text-align: center; padding: 16px; }
+#state[hidden] { display: none; }
+.nodata aside > :not(.foot), .nodata .topbar { visibility: hidden; }
+#state p { margin: 0; max-width: 320px; }
+#state.error .spinner { display: none; }
+#retry { background: var(--fire); color: #111; border: 0; border-radius: 6px; padding: 8px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+.spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--fire); border-radius: 50%; animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+
+.runbox { margin-bottom: 12px; }
+.runbox label { color: var(--muted); font-size: 12px; display: block; margin-bottom: 4px; }
+
+.tlhead { color: var(--muted); font-size: 11px; margin: 4px 0 2px; }
+#tl svg { width: 100%; height: 80px; display: block; margin-bottom: 10px; }
+#tl rect { cursor: pointer; }
+#tl rect.cur { stroke: #fff; stroke-width: 1.5; }
+
+.sub { color: var(--muted); font-size: 12px; margin: -4px 0 8px; }
+#priority { list-style: none; margin: 0; padding: 0; }
+#priority li { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; cursor: pointer; background: var(--bg); }
+#priority li:hover, #priority li.on { border-color: var(--fire); }
+#priority li.empty { cursor: default; color: var(--muted); font-size: 13px; }
+#priority .rank { width: 22px; height: 22px; border-radius: 50%; background: var(--fire); color: #111; font-weight: 700; font-size: 12px; display: grid; place-items: center; flex: none; }
+#priority .pd { flex: 1; min-width: 0; }
+#priority .ps { text-align: right; }
+#priority b { display: block; font-size: 13px; }
+#priority small { color: var(--muted); font-size: 11px; }
+.prio-pin span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--fire); background: rgba(15,17,21,.85);
+  color: var(--fire); font-weight: 700; font-size: 12px; cursor: pointer; }
+
 .foot { color: var(--muted); font-size: 11px; margin-top: 20px; }
 
 .leaflet-container { font: inherit; }
@@ -88,6 +130,7 @@ ul { list-style: none; margin: 0; padding: 0; }
   .meta { display: none; }
   aside { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
   body { height: auto; }
-  .legend { left: 16px; top: auto; bottom: 72px; }
+  .topbar { left: 56px; right: 8px; }
+  #banner { font-size: 13px; }
   #clock { min-width: 110px; }
 }

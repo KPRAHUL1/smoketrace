@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 out.json
 .env
+web/data/history/

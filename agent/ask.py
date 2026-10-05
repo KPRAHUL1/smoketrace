@@ -56,6 +56,13 @@ def fire_activity() -> dict:
 
 
 @tool
+def priority_fires() -> list:
+    """Fire clusters ranked by how much of their smoke is projected to reach Delhi-NCR: district, number of fires,
+    share of total NCR smoke (%), which areas it reaches and first arrival time (ISO, UTC)."""
+    return load().get("priority", [])
+
+
+@tool
 def delhi_pm25_forecast() -> list:
     """Hourly PM2.5 forecast (µg/m³) for central Delhi from the CAMS model, sampled every 3 hours."""
     return load()["delhi_pm25"][::3]
@@ -78,7 +85,7 @@ def ask(question, lang="en"):
     agent = Agent(
         system_prompt=SYSTEM.format(now=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
                                     lang_name="Hindi (Devanagari script)" if lang == "hi" else "English"),
-        tools=[list_areas, area_forecast, fire_activity, delhi_pm25_forecast],
+        tools=[list_areas, area_forecast, fire_activity, priority_fires, delhi_pm25_forecast],
         callback_handler=None, **kwargs)
     return str(agent(question)).strip()
 

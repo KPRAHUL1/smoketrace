@@ -15,7 +15,9 @@ SmokeTrace does that.
 5. **Arrival:** it watches 10 receptor points across Delhi-NCR. A particle within 20 km counts as arrived and adds its share of fire power to that area's smoke index. That gives an alert level, an arrival time, a peak time and the top source districts.
 6. **Alerts:** it publishes an SNS alert in English and Hindi when any area reaches *high* or *severe*. People can also share their area's status on WhatsApp straight from the page.
 7. **Cross-check:** it shows the CAMS PM2.5 forecast for Delhi next to the trajectories, as an independent model.
-8. **Ask SmokeTrace:** a [Strands Agents](https://strandsagents.com) agent on Amazon Bedrock answers questions like *"Is Saturday's school sports day in Noida safe?"* in English or Hindi. It uses four tools over the live forecast (`list_areas`, `area_forecast`, `fire_activity`, `delhi_pm25_forecast`), so it never makes up numbers.
+8. **Priority fires:** the same paths, read in reverse. The clusters are ranked by their share of all the smoke heading for NCR, so enforcement teams know which fires to deal with first. Click one to see only its smoke.
+9. **Season history:** every run is archived to S3 (`data/history/`), and the page has a picker to replay any past forecast.
+10. **Ask SmokeTrace:** a [Strands Agents](https://strandsagents.com) agent on Amazon Bedrock answers questions like *"Is Saturday's school sports day in Noida safe?"* in English or Hindi. It uses five tools over the live forecast (`list_areas`, `area_forecast`, `fire_activity`, `priority_fires`, `delhi_pm25_forecast`), so it never makes up numbers.
 
 ## AWS architecture
 
@@ -34,6 +36,13 @@ EventBridge (rate 3h) ──> Lambda: engine/smoketrace.handler ──> S3 data/
 | Q&A agent | Strands Agents SDK (AWS open source) + Bedrock | Plain-language answers grounded in tool calls |
 
 All of it is in `template.yaml` (AWS SAM). The engine uses only the Python standard library. The agent needs only `strands-agents`.
+
+### On the page
+
+- **Answer first:** a banner over the map gives your area's level, when the smoke arrives and when it peaks.
+- **48-hour timeline:** expected smoke in 3-hour bars. Click a bar to jump the map to that time.
+- **Robust states:** a loading screen, a retry on errors, and a warning when the data is more than 6 hours old.
+- English and Hindi (`?lang=hi`), works on phones, and one tap shares to WhatsApp.
 
 ## Run locally
 
@@ -64,6 +73,7 @@ Open `AppURL`. The "Ask SmokeTrace" box appears once the first run has written t
 ## Honest limits
 
 - These are trajectory **estimates**, not a chemical transport model. The index is relative fire power, not µg/m³.
+- District names come from the nearest district HQ, after first placing the fire on the correct side of an approximate India–Pakistan border line. Fires right on a district boundary can get the neighbouring district's name.
 - Fires under cloud, or very short-lived ones, can be missed by the satellite. FIRMS data runs about 3 h behind.
 - 925 hPa is one level. Night-time inversions trap smoke lower, which the model doesn't capture.
 - Alert thresholds (40 / 150 / 400 MW-equivalent) are first guesses. They should be calibrated against CPCB PM2.5 readings.

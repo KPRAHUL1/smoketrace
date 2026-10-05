@@ -25,6 +25,16 @@
   <main>
     <section id="mapwrap">
       <div id="map"></div>
+      <div class="topbar">
+        <div id="banner"><span id="bLevel"></span><span id="bText"></span></div>
+        <div id="notice" hidden><span id="noticeMsg"></span> <button id="backLive" type="button" data-i18n="backLive">Back to live</button></div>
+        <div id="focusChip" hidden><span id="focusMsg"></span> <button id="clearFocus" type="button" data-i18n="showAll">Show all</button></div>
+      </div>
+      <div id="state" class="loading">
+        <div class="spinner" aria-hidden="true"></div>
+        <p id="stateMsg">Loading the latest fire and wind data…</p>
+        <button id="retry" type="button" data-i18n="retry" hidden>Try again</button>
+      </div>
       <div class="timebar">
         <button id="play" aria-label="Play">▶</button>
         <input id="slider" type="range" min="0" max="72" value="24" step="1" aria-label="Time">
@@ -37,6 +47,11 @@
     </section>
 
     <aside>
+      <div id="runbox" class="runbox" hidden>
+        <label for="run" data-i18n="run">Forecast run</label>
+        <select id="run"></select>
+      </div>
+
       <div class="stats">
         <div><b id="s-fires">–</b><span data-i18n="statFires">fires, 48h</span></div>
         <div><b id="s-frp">–</b><span data-i18n="statFrp">MW fire power</span></div>
@@ -51,6 +66,8 @@
           <span id="when"></span>
         </div>
         <p id="msg"></p>
+        <div class="tlhead" data-i18n="tlTitle">Smoke expected, every 3 hours</div>
+        <div id="tl"></div>
         <div id="srcs"></div>
         <a id="share" class="btn" target="_blank" rel="noopener" data-i18n="share">Share on WhatsApp</a>
       </div>
@@ -67,6 +84,10 @@
         </form>
         <p id="answer" aria-live="polite"></p>
       </div>
+
+      <h3 data-i18n="prioTitle">Priority fires for Delhi-NCR</h3>
+      <p class="sub" data-i18n="prioSub">Fire clusters sending the most smoke toward Delhi-NCR. Click one to see its path.</p>
+      <ol id="priority"></ol>
 
       <h3 data-i18n="allAreas">Delhi-NCR, next 48 hours</h3>
       <ul id="list"></ul>

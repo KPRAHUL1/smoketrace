@@ -65,7 +65,7 @@ Resources:
           TOPIC_ARN: !Ref AlertTopic
           ASK_URL: !GetAtt AskFunctionUrl.FunctionUrl
       Policies:
-        - S3WritePolicy:
+        - S3CrudPolicy:  # reads + rewrites data/history/index.json
             BucketName: !Ref WebBucket
         - SNSPublishMessagePolicy:
             TopicName: !GetAtt AlertTopic.TopicName

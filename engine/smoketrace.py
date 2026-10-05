@@ -87,8 +87,22 @@ def km(lat1, lon1, lat2, lon2):
     return 12742 * math.asin(math.sqrt(a))
 
 
+# Approximate India-Pakistan border (lat, lon), north to south, through the source region.
+# Nearest-HQ matching alone mislabels border fires (e.g. Attari -> Lahore), so pick the side first.
+BORDER = [(32.6, 75.35), (32.05, 75.0), (31.85, 74.8), (31.6, 74.57), (31.3, 74.6), (31.0, 74.55),
+          (30.7, 74.25), (30.4, 73.9), (30.0, 73.55), (29.5, 73.3), (27.0, 71.5)]
+
+
+def in_pakistan(lat, lon):
+    for (la1, lo1), (la2, lo2) in zip(BORDER, BORDER[1:]):
+        if la2 <= lat <= la1:
+            return lon < lo2 + (lo1 - lo2) * (lat - la2) / (la1 - la2)
+    return lat > BORDER[0][0] and lon < BORDER[0][1]
+
+
 def nearest_district(lat, lon):
-    return min(DISTRICTS, key=lambda d: km(lat, lon, d[2], d[3]))
+    pk = in_pakistan(lat, lon)
+    return min((d for d in DISTRICTS if d[1].endswith("Pakistan") == pk), key=lambda d: km(lat, lon, d[2], d[3]))
 
 
 # ---------- data fetch ----------
@@ -231,9 +245,10 @@ def run(now=None):
     now_h = int((now - t0).total_seconds() // 3600)
 
     rec = {r[0]: {"id": r[0], "name": r[1], "name_hi": r[2], "lat": r[3], "lon": r[4],
-                  "index": 0.0, "first_h": None, "peak": {}, "sources": {}} for r in RECEPTORS}
+                  "index": 0.0, "first_h": None, "hourly": [0.0] * (FORECAST_H + 1), "sources": {}} for r in RECEPTORS}
     traj_out = []
-    for s in sources:
+    for si, s in enumerate(sources):
+        s["impact"], s["areas"], s["first_h"] = 0.0, set(), None
         paths = advect(s, t0, grid, now)
         w = s["frp"] / len(paths)  # each particle carries a share of the cluster's fire power
         for pts in paths:
@@ -248,15 +263,20 @@ def run(now=None):
                     R = rec[r[0]]
                     R["index"] += w
                     R["first_h"] = h if R["first_h"] is None else min(R["first_h"], h)
-                    R["peak"][h - now_h] = R["peak"].get(h - now_h, 0) + w
+                    if h - now_h <= FORECAST_H:
+                        R["hourly"][h - now_h] += w
                     R["sources"][s["district"]] = R["sources"].get(s["district"], 0) + w
-            traj_out.append([[round((t0 + timedelta(hours=h)).timestamp()), round(la, 3), round(lo, 3)]
-                             for h, la, lo in pts[::2] + [pts[-1]]])
+                    # reverse view: how much of this cluster's smoke lands in NCR, and where
+                    s["impact"] += w
+                    s["areas"].add(r[1])
+                    s["first_h"] = h if s["first_h"] is None else min(s["first_h"], h)
+            traj_out.append({"s": si, "p": [[round((t0 + timedelta(hours=h)).timestamp()), round(la, 3), round(lo, 3)]
+                                            for h, la, lo in pts[::2] + [pts[-1]]]})
 
     receptors = []
     for R in rec.values():
         lv = level(R["index"])
-        peak_h = max(R["peak"], key=R["peak"].get) if R["peak"] else None
+        peak_h = max(range(len(R["hourly"])), key=R["hourly"].__getitem__) if R["index"] else None
         top = sorted(R["sources"].items(), key=lambda kv: -kv[1])[:3]
         receptors.append({
             "id": R["id"], "name": R["name"], "name_hi": R["name_hi"], "lat": R["lat"], "lon": R["lon"],
@@ -264,6 +284,7 @@ def run(now=None):
             "arrival": (t0 + timedelta(hours=R["first_h"])).isoformat() if R["first_h"] is not None else None,
             "peak": (now + timedelta(hours=peak_h)).isoformat() if peak_h is not None else None,
             "top_sources": [{"district": d, "share": round(v / R["index"] * 100)} for d, v in top],
+            "hourly": [round(v, 1) for v in R["hourly"]],
             "message_en": MESSAGES[lv][0], "message_hi": MESSAGES[lv][1],
         })
     receptors.sort(key=lambda r: -r["index"])
@@ -274,6 +295,15 @@ def run(now=None):
         d["fires"] += s["n"]
         d["frp"] = round(d["frp"] + s["frp"], 1)
 
+    total_impact = sum(s["impact"] for s in sources) or 1
+    priority = [{
+        "id": i, "lat": round(s["lat"], 3), "lon": round(s["lon"], 3), "district": s["district"], "state": s["state"],
+        "fires": s["n"], "frp": round(s["frp"], 1), "share": round(s["impact"] / total_impact * 100, 1),
+        "areas": sorted(s["areas"]),
+        "arrival": (t0 + timedelta(hours=s["first_h"])).isoformat() if s["first_h"] is not None else None,
+    } for i, s in enumerate(sources) if s["impact"] > 0]
+    priority.sort(key=lambda p: -p["share"])
+
     return {
         "generated_at": now.isoformat(),
         "model": {"wind_level": "925 hPa", "horizon_h": FORECAST_H, "receptor_km": RECEPTOR_KM,
@@ -282,6 +312,7 @@ def run(now=None):
         "fires": [[round(f["lat"], 3), round(f["lon"], 3), f["frp"], round(f["t"].timestamp())] for f in fires],
         "districts": sorted(by_district.values(), key=lambda d: -d["frp"]),
         "receptors": receptors,
+        "priority": priority[:10],
         "trajectories": traj_out,
         "delhi_pm25": fetch_delhi_pm25(),
     }
@@ -300,14 +331,38 @@ def alert_text(result):
     return "\n".join(lines)
 
 
+HISTORY_KEEP = 480  # 60 days of 3-hourly runs
+
+
+def history_file(result):
+    return "history/" + result["generated_at"][:13] + ".json"
+
+
+def add_to_index(index, result):
+    entry = {"file": history_file(result), "t": result["generated_at"], "fires": result["summary"]["fires"],
+             "worst": result["receptors"][0]["level"], "worst_area": result["receptors"][0]["name"]}
+    index = [e for e in index if e["file"] != entry["file"]] + [entry]
+    return sorted(index, key=lambda e: e["t"])[-HISTORY_KEEP:]
+
+
 def handler(event, context):
     """AWS Lambda entry: run model, publish latest.json to S3, alert via SNS on high/severe."""
     import boto3
     result = run()
     result["ask_url"] = os.environ.get("ASK_URL", "")
-    boto3.client("s3").put_object(
-        Bucket=os.environ["BUCKET"], Key="data/latest.json", Body=json.dumps(result).encode(),
-        ContentType="application/json", CacheControl="max-age=300")
+    s3, bucket = boto3.client("s3"), os.environ["BUCKET"]
+    body = json.dumps(result).encode()
+    s3.put_object(Bucket=bucket, Key="data/latest.json", Body=body,
+                  ContentType="application/json", CacheControl="max-age=300")
+    # season archive: an immutable snapshot per run + a small index the page uses for its date picker
+    s3.put_object(Bucket=bucket, Key="data/" + history_file(result), Body=body,
+                  ContentType="application/json", CacheControl="max-age=31536000")
+    try:
+        index = json.loads(s3.get_object(Bucket=bucket, Key="data/history/index.json")["Body"].read())
+    except s3.exceptions.NoSuchKey:
+        index = []
+    s3.put_object(Bucket=bucket, Key="data/history/index.json", Body=json.dumps(add_to_index(index, result)).encode(),
+                  ContentType="application/json", CacheControl="max-age=300")
     msg = alert_text(result)
     if msg and os.environ.get("TOPIC_ARN"):
         boto3.client("sns").publish(TopicArn=os.environ["TOPIC_ARN"], Subject="SmokeTrace: smoke heading to Delhi-NCR", Message=msg)
@@ -315,12 +370,20 @@ def handler(event, context):
 
 
 if __name__ == "__main__":
-    out = os.path.join(os.path.dirname(__file__), "..", "web", "data", "latest.json")
-    os.makedirs(os.path.dirname(out), exist_ok=True)
+    data_dir = os.path.join(os.path.dirname(__file__), "..", "web", "data")
+    os.makedirs(os.path.join(data_dir, "history"), exist_ok=True)
     res = run()
-    with open(out, "w", encoding="utf-8") as f:
-        json.dump(res, f, ensure_ascii=False)
+    for name in ("latest.json", history_file(res)):
+        with open(os.path.join(data_dir, name), "w", encoding="utf-8") as f:
+            json.dump(res, f, ensure_ascii=False)
+    idx_path = os.path.join(data_dir, "history", "index.json")
+    index = json.load(open(idx_path, encoding="utf-8")) if os.path.exists(idx_path) else []
+    with open(idx_path, "w", encoding="utf-8") as f:
+        json.dump(add_to_index(index, res), f)
     print(json.dumps(res["summary"]), f"trajectories={len(res['trajectories'])}")
     for r in res["receptors"]:
         print(f"{r['name']:<14} {r['level']:<9} idx={r['index']:<8} arrival={r['arrival']} top={r['top_sources']}")
+    print("\npriority fires:")
+    for p in res["priority"][:5]:
+        print(f"  {p['district']:<18} fires={p['fires']:<3} share={p['share']}% areas={len(p['areas'])}")
     print("\n" + (alert_text(res) or "no alert"))
