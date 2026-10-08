@@ -1,0 +1,53 @@
+# Live GitHub Pages deploy: rerun the SmokeTrace engine every 3 hours and publish web/.
+# History snapshots are carried between runs in the Actions cache.
+name: Forecast and deploy
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Restore forecast history
+        uses: actions/cache@v4
+        with:
+          path: web/data/history
+          key: history-${{ github.run_id }}
+          restore-keys: history-
+
+      - name: Run forecast
+        env:
+          HISTORY_KEEP: "56"  # 7 days of 3-hourly runs
+        run: python engine/smoketrace.py
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

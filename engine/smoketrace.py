@@ -331,7 +331,7 @@ def alert_text(result):
     return "\n".join(lines)
 
 
-HISTORY_KEEP = 480  # 60 days of 3-hourly runs
+HISTORY_KEEP = int(os.environ.get("HISTORY_KEEP", 480))  # 480 = 60 days of 3-hourly runs
 
 
 def history_file(result):
@@ -378,8 +378,13 @@ if __name__ == "__main__":
             json.dump(res, f, ensure_ascii=False)
     idx_path = os.path.join(data_dir, "history", "index.json")
     index = json.load(open(idx_path, encoding="utf-8")) if os.path.exists(idx_path) else []
+    index = add_to_index(index, res)
     with open(idx_path, "w", encoding="utf-8") as f:
-        json.dump(add_to_index(index, res), f)
+        json.dump(index, f)
+    keep = {os.path.basename(e["file"]) for e in index} | {"index.json"}
+    for name in os.listdir(os.path.join(data_dir, "history")):  # drop snapshots that fell out of the index
+        if name not in keep:
+            os.remove(os.path.join(data_dir, "history", name))
     print(json.dumps(res["summary"]), f"trajectories={len(res['trajectories'])}")
     for r in res["receptors"]:
         print(f"{r['name']:<14} {r['level']:<9} idx={r['index']:<8} arrival={r['arrival']} top={r['top_sources']}")

@@ -11,9 +11,15 @@ Parameters:
     Type: String
     Default: ""
     Description: Bedrock model or inference-profile id for the Ask agent (empty = Strands default)
+  EnableAsk:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Show the Ask SmokeTrace chat on the page (needs working Bedrock access)
 
 Conditions:
   HasEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+  AskEnabled: !Equals [!Ref EnableAsk, "true"]
 
 Resources:
   WebBucket:
@@ -56,14 +62,14 @@ Resources:
     Properties:
       CodeUri: engine/
       Handler: smoketrace.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 180
       MemorySize: 512
       Environment:
         Variables:
           BUCKET: !Ref WebBucket
           TOPIC_ARN: !Ref AlertTopic
-          ASK_URL: !GetAtt AskFunctionUrl.FunctionUrl
+          ASK_URL: !If [AskEnabled, !GetAtt AskFunctionUrl.FunctionUrl, ""]
       Policies:
         - S3CrudPolicy:  # reads + rewrites data/history/index.json
             BucketName: !Ref WebBucket
@@ -82,7 +88,7 @@ Resources:
     Properties:
       CodeUri: agent/
       Handler: ask.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 60
       MemorySize: 1024
       Environment:
