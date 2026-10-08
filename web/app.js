@@ -1,4 +1,6 @@
-const LEVEL_COLOR = { low: "#3fb37f", moderate: "#e6b422", high: "#f06a2b", severe: "#d63a5a" };
+// colours live in style.css so the map and charts follow the page theme
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const LEVEL_COLOR = new Proxy({}, { get: (_, lv) => css(`--${lv}`) });
 const STALE_HOURS = 6;
 const T = {
   en: {
@@ -55,10 +57,10 @@ const fmtDay = (iso) => new Date(iso).toLocaleString(lang === "hi" ? "hi-IN" : "
   { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
 const map = L.map("map", { zoomControl: true, preferCanvas: true }).setView([29.9, 76.0], 7);
-L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
   attribution: "Tiles &copy; Esri | Fires: NASA FIRMS | Wind: Open-Meteo", maxZoom: 12,
 }).addTo(map);
-L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 12, pane: "shadowPane" }).addTo(map);
+L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 12, pane: "shadowPane" }).addTo(map);
 const trailLayer = L.layerGroup().addTo(map);
 const fireLayer = L.layerGroup().addTo(map);
 const puffLayer = L.layerGroup().addTo(map);
@@ -128,16 +130,16 @@ function drawStatic() {
   puffs = [];
   trails = [];
   for (const tr of data.trajectories) {
-    const line = L.polyline(tr.p.map((p) => [p[1], p[2]]), { color: "#b9c2d0", weight: 1, opacity: 0.12, interactive: false }).addTo(trailLayer);
+    const line = L.polyline(tr.p.map((p) => [p[1], p[2]]), { color: css("--smoke"), weight: 1, opacity: 0.16, interactive: false }).addTo(trailLayer);
     trails.push({ s: tr.s, line });
-    puffs.push({ s: tr.s, tr: tr.p, m: L.circleMarker([tr.p[0][1], tr.p[0][2]], { radius: 3, stroke: false, fillColor: "#c9d1dd", fillOpacity: 0, interactive: false }).addTo(puffLayer) });
+    puffs.push({ s: tr.s, tr: tr.p, m: L.circleMarker([tr.p[0][1], tr.p[0][2]], { radius: 3, stroke: false, fillColor: css("--smoke-dot"), fillOpacity: 0, interactive: false }).addTo(puffLayer) });
   }
   (data.priority || []).slice(0, 5).forEach((p, i) => {
     L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "prio-pin", html: `<span>${i + 1}</span>`, iconSize: [24, 24] }) })
       .addTo(prioLayer).on("click", () => setFocus(p.id));
   });
   for (const r of data.receptors) {
-    const c = L.circleMarker([r.lat, r.lon], { radius: 7, color: "#0f1115", weight: 2, fillColor: LEVEL_COLOR[r.level], fillOpacity: 1 })
+    const c = L.circleMarker([r.lat, r.lon], { radius: 7, color: "#fff", weight: 2.5, fillColor: LEVEL_COLOR[r.level], fillOpacity: 1 })
       .addTo(recLayer).on("click", () => { sel = r.id; render(); });
     c.bindTooltip(r.name, { direction: "right", className: "rlabel", offset: [6, 0] });
     r._marker = c;
@@ -150,7 +152,7 @@ function drawFires(ts) {
     if (ft > ts) continue;
     const age = (ts - ft) / 3600;
     L.circleMarker([lat, lon], {
-      radius: 2 + Math.min(Math.sqrt(frp), 8), stroke: false, fillColor: "#ff7a1a",
+      radius: 2 + Math.min(Math.sqrt(frp), 8), stroke: false, fillColor: css("--fire"),
       fillOpacity: Math.max(0.25, 0.95 - age / 60), interactive: false,
     }).addTo(fireLayer);
   }
@@ -166,7 +168,7 @@ function setTime(h) {
     while (i < tr.length - 2 && tr[i + 1][0] < ts) i++;
     const a = tr[i], b = tr[i + 1] || a, f = b[0] === a[0] ? 0 : (ts - a[0]) / (b[0] - a[0]);
     p.m.setLatLng([a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f])
-      .setStyle({ fillOpacity: 0.6, fillColor: focus !== null ? "#ffb070" : "#c9d1dd" });
+      .setStyle({ fillOpacity: 0.55, fillColor: css(focus !== null ? "--fire" : "--smoke-dot") });
   }
   drawFires(ts);
   const rel = h - 24;
@@ -179,8 +181,8 @@ function setFocus(id) {
   for (const tr of trails) {
     const on = focus === null || tr.s === focus;
     tr.line.setStyle(focus === null
-      ? { color: "#b9c2d0", weight: 1, opacity: 0.12 }
-      : { color: on ? "#ff9a4a" : "#b9c2d0", weight: on ? 2 : 1, opacity: on ? 0.75 : 0.03 });
+      ? { color: css("--smoke"), weight: 1, opacity: 0.16 }
+      : { color: css(on ? "--fire" : "--smoke"), weight: on ? 2.5 : 1, opacity: on ? 0.8 : 0.04 });
   }
   if (focus !== null) {
     const lines = trails.filter((tr) => tr.s === focus).map((tr) => tr.line);
@@ -296,11 +298,11 @@ function renderTimeline(r) {
   bars.forEach((v, i) => {
     const h = Math.max(v > 0 ? 3 : 1, (v / max) * (H - P * 2));
     svg += `<rect data-h="${i * 3}" x="${P + i * bw + 1}" y="${H - P - h}" width="${bw - 2}" height="${h}" rx="2"
-      fill="${v > 0 ? col : "#2a303a"}"><title>+${i * 3}–${i * 3 + 3}h: ${v.toFixed(1)}</title></rect>`;
+      fill="${v > 0 ? col : css("--line")}"><title>+${i * 3}–${i * 3 + 3}h: ${v.toFixed(1)}</title></rect>`;
   });
-  if (bars[peakI] > 0) svg += `<text x="${P + peakI * bw + bw / 2}" y="${H - P - (bars[peakI] / max) * (H - P * 2) - 4}" fill="#e8eaee" font-size="9" text-anchor="middle">${t("bPeak")}</text>`;
+  if (bars[peakI] > 0) svg += `<text x="${P + peakI * bw + bw / 2}" y="${H - P - (bars[peakI] / max) * (H - P * 2) - 4}" fill="${css("--text")}" font-size="9" font-weight="600" text-anchor="middle">${t("bPeak")}</text>`;
   [0, 12, 24, 36, 48].forEach((hh) => {
-    svg += `<text x="${P + (hh / 3) * bw}" y="${H - 2}" fill="#8b93a1" font-size="9" text-anchor="${hh === 0 ? "start" : hh === 48 ? "end" : "middle"}">${hh === 0 ? t("now") : "+" + hh + "h"}</text>`;
+    svg += `<text x="${P + (hh / 3) * bw}" y="${H - 2}" fill="${css("--muted")}" font-size="9" text-anchor="${hh === 0 ? "start" : hh === 48 ? "end" : "middle"}">${hh === 0 ? t("now") : "+" + hh + "h"}</text>`;
   });
   $("tl").innerHTML = svg + "</svg>";
   $("tl").querySelectorAll("rect").forEach((b) => b.addEventListener("click", () => { stop(); setTime(24 + +b.dataset.h); }));
@@ -327,13 +329,13 @@ function drawPm() {
   const nx = x(nowTs * 1000);
   const peak = pts.reduce((a, b) => (b.pm25 > a.pm25 ? b : a));
   $("pm").innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <line x1="${P}" x2="${W - P}" y1="${y(60)}" y2="${y(60)}" stroke="#e6b422" stroke-dasharray="3 3" opacity=".5"/>
-    <text x="${W - P}" y="${y(60) - 3}" fill="#8b93a1" font-size="9" text-anchor="end">60 (NAAQS 24h)</text>
-    <path d="${line}" fill="none" stroke="#ff7a1a" stroke-width="2"/>
-    <line x1="${nx}" x2="${nx}" y1="${P / 2}" y2="${H - P}" stroke="#8b93a1" stroke-dasharray="2 3"/>
-    <text x="${nx + 3}" y="${P}" fill="#8b93a1" font-size="9">${t("now")}</text>
-    <circle cx="${x(Date.parse(peak.t))}" cy="${y(peak.pm25)}" r="3" fill="#ff7a1a"/>
-    <text x="${x(Date.parse(peak.t))}" y="${y(peak.pm25) - 6}" fill="#e8eaee" font-size="10" text-anchor="middle">${Math.round(peak.pm25)}</text>
+    <line x1="${P}" x2="${W - P}" y1="${y(60)}" y2="${y(60)}" stroke="${css("--moderate")}" stroke-dasharray="3 3" opacity=".6"/>
+    <text x="${W - P}" y="${y(60) - 3}" fill="${css("--muted")}" font-size="9" text-anchor="end">60 (NAAQS 24h)</text>
+    <path d="${line}" fill="none" stroke="${css("--fire")}" stroke-width="2"/>
+    <line x1="${nx}" x2="${nx}" y1="${P / 2}" y2="${H - P}" stroke="${css("--muted")}" stroke-dasharray="2 3"/>
+    <text x="${nx + 3}" y="${P}" fill="${css("--muted")}" font-size="9">${t("now")}</text>
+    <circle cx="${x(Date.parse(peak.t))}" cy="${y(peak.pm25)}" r="3" fill="${css("--fire")}"/>
+    <text x="${x(Date.parse(peak.t))}" y="${y(peak.pm25) - 6}" fill="${css("--text")}" font-size="10" font-weight="600" text-anchor="middle">${Math.round(peak.pm25)}</text>
   </svg>`;
 }
 
