@@ -11,6 +11,7 @@ import io
 import json
 import math
 import os
+import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
@@ -87,8 +88,14 @@ def _get(url, params=None, timeout=60):
     if params:
         url = url + "?" + "&".join(f"{k}={v}" for k, v in params.items())
     req = urllib.request.Request(url, headers={"User-Agent": "SmokeTrace/1.0"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read().decode("utf-8")
+    for attempt in range(3):  # NASA/Open-Meteo occasionally drop a connection; don't lose a 3-hourly run to it
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.read().decode("utf-8")
+        except OSError:
+            if attempt == 2:
+                raise
+            time.sleep(10 * (attempt + 1))
 
 
 def km(lat1, lon1, lat2, lon2):
