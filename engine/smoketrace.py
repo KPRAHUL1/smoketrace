@@ -63,6 +63,17 @@ DISTRICTS = [
     ("Bhiwani", "Haryana", 28.79, 76.13), ("Saharanpur", "Uttar Pradesh", 29.97, 77.55),
     ("Muzaffarnagar", "Uttar Pradesh", 29.47, 77.70), ("Meerut", "Uttar Pradesh", 28.98, 77.71),
     ("Sri Ganganagar", "Rajasthan", 29.91, 73.88), ("Hanumangarh", "Rajasthan", 29.58, 74.33),
+    # Delhi-NCR, south Haryana, west UP and north Rajasthan: the source bbox reaches these too
+    ("Delhi", "Delhi", 28.65, 77.20), ("Gurugram", "Haryana", 28.46, 77.03), ("Faridabad", "Haryana", 28.41, 77.32),
+    ("Palwal", "Haryana", 28.14, 77.33), ("Nuh", "Haryana", 28.10, 77.00), ("Rewari", "Haryana", 28.19, 76.62),
+    ("Jhajjar", "Haryana", 28.61, 76.66), ("Mahendragarh", "Haryana", 28.27, 76.15), ("Charkhi Dadri", "Haryana", 28.59, 76.27),
+    ("Panchkula", "Haryana", 30.69, 76.86), ("Gautam Buddh Nagar", "Uttar Pradesh", 28.47, 77.51),
+    ("Ghaziabad", "Uttar Pradesh", 28.67, 77.44), ("Hapur", "Uttar Pradesh", 28.73, 77.78), ("Baghpat", "Uttar Pradesh", 28.94, 77.22),
+    ("Shamli", "Uttar Pradesh", 29.45, 77.31), ("Bulandshahr", "Uttar Pradesh", 28.40, 77.85), ("Aligarh", "Uttar Pradesh", 27.88, 78.08),
+    ("Hathras", "Uttar Pradesh", 27.60, 78.05), ("Mathura", "Uttar Pradesh", 27.49, 77.67), ("Bijnor", "Uttar Pradesh", 29.37, 78.13),
+    ("Haridwar", "Uttarakhand", 29.95, 78.16), ("Dehradun", "Uttarakhand", 30.32, 78.03),
+    ("Alwar", "Rajasthan", 27.56, 76.60), ("Bharatpur", "Rajasthan", 27.22, 77.49),
+    ("Jhunjhunu", "Rajasthan", 28.13, 75.40), ("Churu", "Rajasthan", 28.30, 74.95),
     # Pakistani Punjab: smoke crosses the border, so name it rather than mislabel it as an Indian district
     ("Lahore (PK)", "Punjab, Pakistan", 31.55, 74.34), ("Kasur (PK)", "Punjab, Pakistan", 31.12, 74.45),
     ("Sheikhupura (PK)", "Punjab, Pakistan", 31.71, 73.98), ("Gujranwala (PK)", "Punjab, Pakistan", 32.16, 74.19),
